@@ -5,22 +5,42 @@ import android.support.v7.app.ActionBarActivity;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import android.widget.Toast;
+import android.hardware.Camera;
+import android.hardware.Camera.Parameters;
+import android.view.SurfaceView;
+import android.view.View;
+import android.widget.Button;
 
 import com.andrewgiang.textspritzer.lib.Spritzer;
 import com.andrewgiang.textspritzer.lib.SpritzerTextView;
+import edu.pitt.cs.mips.hrv_exp.*;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity  implements BeatObserver {
 
     public static final String TAG = MainActivity.class.getName();
     private SpritzerTextView mSpritzerTextView;
     private SeekBar mSeekBarTextSize;
     private SeekBar mSeekBarWpm;
     private ProgressBar mProgressBar;
+    private SurfaceView mPreview;
+    HeartBeat heartrate;
+    Button start;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        start = (Button) findViewById(R.id.camBtn);
+        mPreview = (SurfaceView) findViewById(R.id.preview);
+
+        mPreview.setMinimumWidth(176);
+        mPreview.setMinimumHeight(144);
+        heartrate = new HeartBeat(mPreview, this);
+        heartrate.setBPMObserver(this);
+
+       // heartrate.stop();
+       // heartrate.start();
 
         //Review the view and set text to be spritzed
         mSpritzerTextView = (SpritzerTextView) findViewById(R.id.spritzTV);
@@ -37,16 +57,18 @@ public class MainActivity extends ActionBarActivity {
 
         //Set Click Control listeners, these will be called when the user uses the click controls
         mSpritzerTextView.setOnClickControlListener(new SpritzerTextView.OnClickControlListener() {
+
             @Override
             public void onPause() {
                 Toast.makeText(MainActivity.this, "Spritzer has been paused", Toast.LENGTH_SHORT).show();
+         //       heartrate.stop();
 
             }
 
             @Override
             public void onPlay() {
                 Toast.makeText(MainActivity.this, "Spritzer is playing", Toast.LENGTH_SHORT).show();
-
+           //     heartrate.start();
             }
         });
 
@@ -121,6 +143,51 @@ public class MainActivity extends ActionBarActivity {
             mSeekBarTextSize.setProgress((int) mSpritzerTextView.getTextSize());
         }
 
+    }
+
+    public void OnClickStart(View view) {//??????????????????????
+        Button btn = (Button)view;
+        heartrate.stop();
+        heartrate.start();
+    }
+    public void onBeat(int heartrate, int duration) {
+        // TODO Auto-generated method stub
+    }
+
+    public void onCameraError(Exception exception, Parameters parameters) {
+        // TODO Auto-generated method stub
+
+    }
+
+    public void onHBError() {
+        // TODO Auto-generated method stub
+
+    }
+
+    public void onHBStart() {
+
+    }
+
+    public void onHBStop(){
+
+    }
+    public void onSample(long timestamp, float value){
+
+    }
+    public void onValidRR(long timestamp, int value){
+
+    }
+    public void onValidatedRR(long timestamp, int value){
+
+    }
+    public void onCovered(){
+        mSpritzerTextView.play();
+        Toast.makeText(MainActivity.this, "Spritzer is playing", Toast.LENGTH_SHORT).show();
+    }
+    public void onUncovered(){
+
+        mSpritzerTextView.pause();
+        Toast.makeText(MainActivity.this, "Spritzer has been paused", Toast.LENGTH_SHORT).show();
     }
 
 
