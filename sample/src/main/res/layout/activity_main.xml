@@ -85,8 +85,8 @@
 
     <FrameLayout
         android:layout_marginBottom="108dp"
-        android:layout_width="176px"
-        android:layout_height="144px"
+        android:layout_width="1px"
+        android:layout_height="1px"
         android:layout_alignParentBottom="true">
         <SurfaceView android:id="@+id/preview" android:layout_width="wrap_content" android:layout_height="wrap_content"></SurfaceView>
 
