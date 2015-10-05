@@ -12,7 +12,7 @@ public interface BeatObserver {
 
     public abstract void onHBStop();
 
-    public abstract void onSample(long timestamp, float value);
+    public abstract void onSample(long timestamp, double value);
 
     public abstract void onValidRR(long timestamp, int value);
 

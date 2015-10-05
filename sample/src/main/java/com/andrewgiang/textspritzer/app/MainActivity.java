@@ -14,28 +14,41 @@ import android.widget.Button;
 import com.andrewgiang.textspritzer.lib.Spritzer;
 import com.andrewgiang.textspritzer.lib.SpritzerTextView;
 import edu.pitt.cs.mips.hrv_exp.*;
+import android.content.Context;
+import android.util.Log;
 
 public class MainActivity extends ActionBarActivity  implements BeatObserver {
 
     public static final String TAG = MainActivity.class.getName();
+    private static Context context;
     private SpritzerTextView mSpritzerTextView;
     private SeekBar mSeekBarTextSize;
     private SeekBar mSeekBarWpm;
     private ProgressBar mProgressBar;
     private SurfaceView mPreview;
+    DataStorage storage;
     HeartBeat heartrate;
     Button start;
 
+    public static Context getAppContext() {
+        return MainActivity.context;
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         start = (Button) findViewById(R.id.camBtn);
+
+        context = getApplicationContext();
+        Log.i("HeartBeatAlgorithm", "AppCreated");
+        storage = DataStorage.getInstance(context);
         mPreview = (SurfaceView) findViewById(R.id.preview);
 
         mPreview.setMinimumWidth(176);
         mPreview.setMinimumHeight(144);
+
+
         heartrate = new HeartBeat(mPreview, this);
         heartrate.setBPMObserver(this);
 
@@ -61,14 +74,21 @@ public class MainActivity extends ActionBarActivity  implements BeatObserver {
             @Override
             public void onPause() {
                 Toast.makeText(MainActivity.this, "Spritzer has been paused", Toast.LENGTH_SHORT).show();
-         //       heartrate.stop();
+                Log.i("HeartBeatAlgorithm", "AppPause");
+               // Toast.makeText(MainActivity.this, "Here we are: "+DataStorage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex()), Toast.LENGTH_SHORT).show();
+              //  Toast.makeText(MainActivity.this, storage.toString(), Toast.LENGTH_SHORT).show();
 
+            //       heartrate.stop();
+        //mSpritzerTextView.getCurrentWordIndex()
+                //
             }
 
             @Override
             public void onPlay() {
                 Toast.makeText(MainActivity.this, "Spritzer is playing", Toast.LENGTH_SHORT).show();
            //     heartrate.start();
+                Log.i("HeartBeatAlgorithm", "AppPlay");
+
             }
         });
 
@@ -76,6 +96,9 @@ public class MainActivity extends ActionBarActivity  implements BeatObserver {
             @Override
             public void onComplete() {
                 Toast.makeText(MainActivity.this, "Spritzer is finished", Toast.LENGTH_SHORT).show();
+                storage.save("Galileo", System.currentTimeMillis());
+                Log.i("HeartBeatAlgorithm", "AppFinish");
+
 
             }
         });
@@ -147,11 +170,15 @@ public class MainActivity extends ActionBarActivity  implements BeatObserver {
 
     public void OnClickStart(View view) {//??????????????????????
         Button btn = (Button)view;
-        heartrate.stop();
+//        heartrate.stop();
         heartrate.start();
+        onUncovered();
     }
     public void onBeat(int heartrate, int duration) {
         // TODO Auto-generated method stub
+        String hr = "" + heartrate;
+
+        Log.i("HeartBeatAlgorithm", "onBeat");
     }
 
     public void onCameraError(Exception exception, Parameters parameters) {
@@ -171,7 +198,7 @@ public class MainActivity extends ActionBarActivity  implements BeatObserver {
     public void onHBStop(){
 
     }
-    public void onSample(long timestamp, float value){
+    public void onSample(long timestamp, double value){
 
     }
     public void onValidRR(long timestamp, int value){
@@ -182,12 +209,20 @@ public class MainActivity extends ActionBarActivity  implements BeatObserver {
     }
     public void onCovered(){
         mSpritzerTextView.play();
-        Toast.makeText(MainActivity.this, "Spritzer is playing", Toast.LENGTH_SHORT).show();
+        Toast.makeText(MainActivity.this, "Spritzer is playing by camera", Toast.LENGTH_SHORT).show();
+
+        Log.i("HeartBeatAlgorithm", "onCovered");
     }
     public void onUncovered(){
 
         mSpritzerTextView.pause();
-        Toast.makeText(MainActivity.this, "Spritzer has been paused", Toast.LENGTH_SHORT).show();
+
+        Toast.makeText(MainActivity.this, "Spritzer has been paused by camera.", Toast.LENGTH_SHORT).show();
+        storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
+
+        Log.i("HeartBeatAlgorithm", "onUncovered");
+       // System.out.println("~~~``````````~~~~~~~~~`" + String.valueOf(DataStorage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex())));
+       // Toast.makeText(MainActivity.this,storage.save("Galileo",System.currentTimeMillis()) , Toast.LENGTH_SHORT).show();
     }
 
 
