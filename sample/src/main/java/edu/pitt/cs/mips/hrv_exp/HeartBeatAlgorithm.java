@@ -246,8 +246,7 @@ public class HeartBeatAlgorithm
 
 	public void addSample(long timestamp, double pulse_value)
 	{
-		Log.i(TAG, "addSample," + timestamp + "," + pulse_value);
-		Log.i("TimeStamp", "" + timestamp);
+//		Log.i(TAG, "addSample," + timestamp + "," + pulse_value);
 		samplesT[sample_count] = timestamp;
 		samplesV[sample_count] = pulse_value;
 
@@ -258,7 +257,6 @@ public class HeartBeatAlgorithm
 			fpsLastTimeStamp = timestamp;
 
 			heartRateLimit = Math.min(maxHeartRate, currentFps * 60 / shanonFactor);
-			Log.i(TAG, "currentFps = " + currentFps + " Heart rate Limit = " + heartRateLimit);
 		}
 
 		fpsCounter += 1;
