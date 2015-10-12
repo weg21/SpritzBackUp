@@ -17,6 +17,7 @@
         android:src="@drawable/watchpic"
         android:scaleType="centerCrop"
         />
+
     <LinearLayout
         android:id="@+id/ll1"
         android:layout_width="332px"
@@ -175,6 +176,30 @@
 
     </LinearLayout>
 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="face:"
+        android:id="@+id/faceNum"
+        android:layout_above="@+id/yawVal"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="yaw:"
+        android:id="@+id/yawVal"
+        android:layout_above="@+id/gazePoint"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="gaze:"
+        android:id="@+id/gazePoint"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
 
     <Button
         android:layout_width="wrap_content"
@@ -186,15 +211,38 @@
         android:id="@+id/camBtn"
         android:onClick="OnClickStart"
         android:layout_gravity="right" />
+    <ImageView
+        android:id="@+id/statusImage"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@drawable/red"
+        android:layout_alignTop="@+id/bg"
+        android:layout_alignRight="@+id/bg"
+        android:layout_alignEnd="@+id/bg"
+        android:layout_marginTop="67dp" />
     <FrameLayout
 
         android:layout_below="@+id/camBtn"
         android:layout_marginTop="10dp"
-        android:layout_marginLeft="500px"
+        android:layout_marginLeft="200px"
         android:layout_width="100px"
         android:layout_height="100px"
-        android:layout_alignParentBottom="true">
+        android:layout_alignParentBottom="true"
+        android:id="@+id/frameLayout">
         <SurfaceView android:id="@+id/preview" android:layout_width="wrap_content" android:layout_height="wrap_content"></SurfaceView>
+
+    </FrameLayout>
+
+    <FrameLayout
+
+        android:layout_below="@+id/camBtn"
+        android:layout_marginTop="10dp"
+        android:layout_marginLeft="200px"
+        android:layout_width="100px"
+        android:layout_height="100px"
+        android:layout_alignParentBottom="true"
+        android:id="@+id/preview2">
+        <!--<SurfaceView android:id="@+id/preview2" android:layout_width="wrap_content" android:layout_height="wrap_content"></SurfaceView>-->
 
     </FrameLayout>
 
