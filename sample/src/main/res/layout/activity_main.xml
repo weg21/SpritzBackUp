@@ -91,91 +91,23 @@
     </LinearLayout>
 </ScrollView>
     </LinearLayout>
-<!--
-    <com.andrewgiang.textspritzer.lib.SpritzerTextView
-        android:id="@+id/spritzTV"
-        android:layout_width="332px"
+
+    <TextView
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:typeface="monospace"
-        app:clickControls="true" />
-
-
-    <com.andrewgiang.textspritzer.lib.SpritzerTextView
-        android:id="@+id/spritzTV"
-        android:layout_width="448px"
-        android:layout_height="528px"
-        android:typeface="monospace"
-        app:clickControls="true" />
-
-
-
-    <ProgressBar
-        android:id="@+id/spritz_progress"
-        android:layout_width="300dp"
-        android:layout_height="20dp"
-        android:layout_below="@id/spritzTV"
-        style="?android:attr/progressBarStyleHorizontal" />
-
-    <LinearLayout
-        android:orientation="vertical"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:layout_below="@+id/spritzTV"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginTop="45dp"
-        android:id="@+id/linear1">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/seek_wpm"
-            android:id="@+id/textView"
-            android:layout_centerVertical="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_alignRight="@+id/textView2"
-            android:layout_alignEnd="@+id/textView2" />
-
-        <SeekBar
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/seekBarWpm"
-            android:layout_alignTop="@+id/textView2"
-            android:layout_toRightOf="@+id/textView2" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/seek_text_size"
-            android:id="@+id/textView2"
-            android:layout_below="@+id/textView"
-            android:layout_marginTop="43dp"
-            android:layout_alignRight="@+id/button"
-            android:layout_alignEnd="@+id/button"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true" />
-
-        <SeekBar
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:id="@+id/seekBarTextSize"
-            android:layout_centerVertical="true"
-            android:layout_toRightOf="@+id/textView"
-            android:layout_alignRight="@+id/seekBarTextSize"
-            android:layout_alignEnd="@+id/seekBarTextSize" />
-
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Start Camera"
-            android:id="@+id/camBtn"
-            android:onClick="OnClickStart"
-            android:layout_gravity="right" />
-
-
-    </LinearLayout>
--->
+        android:text="B:"
+        android:id="@+id/heartIndicater"
+        android:layout_above="@+id/heartData"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="heart data:"
+        android:id="@+id/heartData"
+        android:layout_above="@+id/faceNum"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -207,8 +139,8 @@
         android:layout_below="@+id/ll1"
         android:layout_marginTop="60px"
         android:layout_marginLeft="450px"
-        android:text="Start Camera"
-        android:id="@+id/camBtn"
+        android:text="FaceControl"
+        android:id="@+id/faceConrol"
         android:onClick="OnClickStart"
         android:layout_gravity="right" />
     <ImageView
@@ -220,29 +152,14 @@
         android:layout_alignRight="@+id/bg"
         android:layout_alignEnd="@+id/bg"
         android:layout_marginTop="67dp" />
- <!--
-    <FrameLayout
-
-        android:layout_below="@+id/camBtn"
-        android:layout_marginTop="10dp"
-        android:layout_marginLeft="200px"
-        android:layout_width="100px"
-        android:layout_height="100px"
-        android:layout_alignParentBottom="true"
-        android:id="@+id/frameLayout">
-        <SurfaceView android:id="@+id/preview" android:layout_width="wrap_content" android:layout_height="wrap_content"></SurfaceView>
-
-    </FrameLayout>-->
 
     <FrameLayout
-
         android:layout_width="150px"
         android:layout_height="200px"
-        android:id="@+id/preview2"
+        android:id="@+id/preview"
         android:layout_alignParentTop="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true">
-        <!--<SurfaceView android:id="@+id/preview2" android:layout_width="wrap_content" android:layout_height="wrap_content"></SurfaceView>-->
 
 
         <FrameLayout
@@ -260,24 +177,6 @@
         android:layout_alignParentEnd="true"
         android:id="@+id/test2"></FrameLayout>
 
-    <!--
-        <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            android:orientation="vertical"
-            android:id="@+id/ll"
-            android:layout_alignTop="@+id/preview2"
-            android:layout_alignLeft="@+id/preview2"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <Button
-                android:id="@+id/takepicture"
-                android:layout_width="150px"
-                android:layout_height="200px"
-                android:text=" * "
-                android:layout_gravity="right"
-                />
-
-        </LinearLayout>-->
 
 
 
