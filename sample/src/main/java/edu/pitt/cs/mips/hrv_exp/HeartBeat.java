@@ -488,7 +488,7 @@ public class HeartBeat
             observer.onBeat(heartrate, duration / 1000);
         }
     }
-
+//*
     public void onPreviewFrame(byte frame[], Camera camera)
     {
         lastTime = System.nanoTime();

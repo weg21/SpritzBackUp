@@ -1,5 +1,8 @@
 package com.andrewgiang.textspritzer.app;
 
+import android.graphics.Color;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.RectShape;
 import android.os.Bundle;
 import android.support.v7.app.ActionBarActivity;
 import android.widget.ProgressBar;
@@ -10,43 +13,30 @@ import android.hardware.Camera.Parameters;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
-
 import com.andrewgiang.textspritzer.lib.Spritzer;
 import com.andrewgiang.textspritzer.lib.SpritzerTextView;
 import edu.pitt.cs.mips.hrv_exp.*;
-
 import android.content.Context;
 import android.util.Log;
-
-import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PointF;
-import android.graphics.PorterDuff.Mode;
-import android.hardware.Camera;
-import android.hardware.Camera.Face;
-import android.hardware.Camera.FaceDetectionListener;
-import android.hardware.Camera.Parameters;
+import android.graphics.Point;
+import android.graphics.Rect;
 import android.hardware.Camera.Size;
 import android.hardware.SensorManager;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.Display;
 import android.view.Menu;
-import android.view.MotionEvent;
 import android.view.OrientationEventListener;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.view.View.OnTouchListener;
-import android.view.ViewGroup.LayoutParams;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import java.util.EnumSet;
+import android.view.LayoutInflater;
 
 import com.qualcomm.snapdragon.sdk.face.FaceData;
 import com.qualcomm.snapdragon.sdk.face.FacialProcessing;
@@ -54,8 +44,9 @@ import com.qualcomm.snapdragon.sdk.face.FacialProcessing.FP_MODES;
 import com.qualcomm.snapdragon.sdk.sample.CameraSurfacePreview;
 import com.qualcomm.snapdragon.sdk.face.FacialProcessing.PREVIEW_ROTATION_ANGLE;
 import com.qualcomm.snapdragon.sdk.sample.saveFaceData;
+import org.ejml.simple.SimpleMatrix;
 
-public class MainActivity extends ActionBarActivity implements BeatObserver, Camera.PreviewCallback {
+public class MainActivity extends ActionBarActivity implements Camera.PreviewCallback {
 
     public static final String TAG = MainActivity.class.getName();
     private static Context context;
@@ -70,6 +61,7 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
     saveFaceData saving;
     HeartBeat heartrate;
     Button start;
+    Canvas cv = new Canvas();
     OrientationEventListener orientationEventListener;
     int deviceOrientation;
     int presentOrientation;
@@ -92,14 +84,50 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
     int horizontalGaze = 0;
     int verticalGaze = 0;
     PointF gazePointValue = null;
+    Point leftEyeCoord=null;
+    Point rightEyeCoord=null;
+    Rect faceRect = null;
     View myView;
+    View shapeView;
+    View shapeView2;
     float rounded;
     Display display;
     int displayAngle;
     FaceData[] faceArray = null;// Array in which all the face data values will be returned for each face detected.
     boolean landScapeMode = false;
     ImageView statusImage;
+    LayoutInflater controlInflater = null;
+    ShapeDrawable sd = null;
+    ShapeDrawable sd2 = null;
+    FrameLayout.LayoutParams paramsShape;
+    FrameLayout.LayoutParams paramsShape2;
 
+
+    //---------
+    PulseData pulData = null;
+
+    /**************************************************
+    long start_timestamp;
+    int positiveFrameCounter;
+    int negativeFrameCounter;
+    boolean isDetecting;
+    int skipSamples;
+    long init_timestamp;
+    double init_value;
+    double [] interpolated_value;
+    int counter;
+    long prev_timestamp;
+    long interpolated_timestamp;
+    double prev_value;
+    boolean firstTime_flag;
+    double[] tempBuffer;
+    int lambda;
+    BeatObserver observer;
+    SimpleMatrix Temp1;
+    SimpleMatrix Temp2;
+    SimpleMatrix I;
+    HeartBeatAlgorithm hralgirthm;
+    //**************************************************/
 
     public static Context getAppContext() {
         return MainActivity.context;
@@ -108,9 +136,56 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        context = getApplicationContext();
         myView = new View(MainActivity.this);
         preview2 = (FrameLayout) findViewById(R.id.preview2);
+       // framel = (FrameLayout) findViewById(R.id.test2);
+        sd = new ShapeDrawable(new RectShape());
+        sd.getPaint().setColor(Color.GREEN);//0xFFFFFFFF);
+        sd.getPaint().setStyle(Paint.Style.STROKE);
+        sd.getPaint().setStrokeWidth(10);
 
+        sd2 = new ShapeDrawable(new RectShape());
+        sd2.getPaint().setColor(Color.YELLOW);//0xFFFFFFFF);
+        sd2.getPaint().setStyle(Paint.Style.STROKE);
+        sd2.getPaint().setStrokeWidth(10);
+        shapeView = new View(context);
+        shapeView.setBackground(sd);
+        shapeView2 = new View(context);
+        shapeView2.setBackground(sd2);
+
+        paramsShape = new FrameLayout.LayoutParams(100, 100);
+        paramsShape.setMargins(0, 0, 0, 0);
+
+        paramsShape2 = new FrameLayout.LayoutParams(50, 25);
+        paramsShape2.setMargins(0, 0, 0, 0);
+        //--------------
+        //pulData = new PulseData(mPreview2);
+        /******************
+        isDetecting = false;
+        skipSamples = 3;
+        init_timestamp=0;
+        init_value=0;
+        interpolated_value = new double[50000];
+        counter=0;
+        prev_timestamp = 0;
+        interpolated_timestamp = 0;
+        prev_value = 0;
+        firstTime_flag = false;
+        tempBuffer = new double[100];
+        lambda = 10;
+        observer = null;
+        I = SimpleMatrix.identity(100);
+        Temp2 = I.minus((I.plus(Temp1)).invert());
+        hralgirthm = new HeartBeatAlgorithm();
+        ******************/
+
+        //preview2.addView(shapeView, params);
+
+
+
+
+/*
         start = (Button) findViewById(R.id.camBtn);
         context = getApplicationContext();
         Log.i("HeartBeatAlgorithm", "AppCreated");
@@ -124,6 +199,19 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         heartrate.setBPMObserver(this);
        // heartrate.stop();
        // heartrate.start();
+*/
+        /*
+        controlInflater = LayoutInflater.from(getBaseContext());
+       // LinearLayout temp = (LinearLayout) findViewById(R.id.ll);
+
+        View viewControl = controlInflater.inflate(R.layout.control, null);
+        LayoutParams layoutParamsControl
+                = new LayoutParams(LayoutParams.FILL_PARENT,
+                LayoutParams.FILL_PARENT);
+        this.addContentView(viewControl, layoutParamsControl);
+
+
+
 
  /***********************************************************************/
         statusImage = (ImageView) findViewById(R.id.statusImage);
@@ -152,9 +240,14 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         mPreview2 = new CameraSurfacePreview(MainActivity.this, cameraObj, faceProc);
 //        mPreview2.setMinimumWidth(176);
 //        mPreview2.setMinimumHeight(144);
-        preview2.removeView(mPreview2);
+        preview2.removeAllViews();
         preview2 = (FrameLayout) findViewById(R.id.preview2);
-        preview2.addView(mPreview2);
+        preview2.addView(mPreview2, 0);
+        preview2.addView(shapeView, 1, paramsShape);
+        preview2.addView(shapeView2, 2, paramsShape2);
+
+
+
         //cameraObj.setPreviewCallback(MainActivity.this);
         numFaceText = (TextView) findViewById(R.id.faceNum);
         faceYawText = (TextView) findViewById(R.id.yawVal);
@@ -221,6 +314,7 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
 //            }
 //        });
 
+        //RectShape rs = new RectShape();
 
         setupSeekBars();
 
@@ -275,7 +369,7 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         }
 
     }
-
+/*
     public void OnClickStart(View view) {//??????????????????????
         Button btn = (Button)view;
 //        heartrate.stop();
@@ -326,14 +420,14 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         mSpritzerTextView.pause();
 
         Toast.makeText(MainActivity.this, "Spritzer has been paused by camera.", Toast.LENGTH_SHORT).show();
-        storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
+       // storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
 
         Log.i("HeartBeatAlgorithm", "onUncovered");
        // System.out.println("~~~``````````~~~~~~~~~`" + String.valueOf(DataStorage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex())));
        // Toast.makeText(MainActivity.this,storage.save("Galileo",System.currentTimeMillis()) , Toast.LENGTH_SHORT).show();
     }
 
-
+*/
   /*
 
     FaceDetectionListener faceDetectionListener = new FaceDetectionListener() {
@@ -384,7 +478,7 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
      */
 
     public void setUI(int numFaces, int smileValue, int leftEyeBlink, int rightEyeBlink, int faceRollValue,
-                      int faceYawValue, int facePitchValue, PointF gazePointValue, int horizontalGazeAngle, int verticalGazeAngle) {
+                      int faceYawValue, int facePitchValue, PointF gazePointValue, int horizontalGazeAngle, int verticalGazeAngle, Rect faceRect, Point leftEyeCoord, Point rightEyeCoord) {
         System.out.println("%%%%%%%%%%%%%%&&&&&&&&&&&&&&&&&&&&&&&& setUI");
         //Toast.makeText(MainActivity.this, "SETUI is running", Toast.LENGTH_SHORT).show();
 
@@ -399,7 +493,7 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
 //        horizontalGazeText.setText("Horizontal Gaze: " + horizontalGazeAngle);
 //        verticalGazeText.setText("VerticalGaze: " + verticalGazeAngle);
 
-        if ((numFaces > 0) && (faceYawValue*faceYawValue < 225)) {
+        if ((numFaces > 0) && (faceYawValue*faceYawValue < 500)) {
             statusImage.setImageResource(R.drawable.green);
         }
         else{
@@ -409,13 +503,27 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         if (gazePointValue != null) {
             double x = Math.round(gazePointValue.x * 100.0) / 100.0;// Rounding the gaze point value.
             double y = Math.round(gazePointValue.y * 100.0) / 100.0;
-            gazePointText.setText("Gaze: (" + x + "," + y + ")");
+            float d=(float)Math.sqrt((leftEyeCoord.x-rightEyeCoord.x)*(leftEyeCoord.x-rightEyeCoord.x)+(leftEyeCoord.y-rightEyeCoord.y)*(leftEyeCoord.y-rightEyeCoord.y))/4;
+            //rectangle used for detecting the pulse
+            PointF leftCorner = new PointF(leftEyeCoord.x+d/2,leftEyeCoord.y-5*d/2);
+            PointF rightCorner = new PointF(rightEyeCoord.x-d/2,rightEyeCoord.y-d);
+            gazePointText.setText("Gaze: (" + x + "," + y + ")" + "l,t,r,b:" + faceRect.left + "," + faceRect.top + "," + faceRect.right + "," + faceRect.bottom + "\n lc: " + leftCorner + "\n rc:" + rightCorner);
+            preview2.bringChildToFront(shapeView);
+            preview2.bringChildToFront(shapeView2);
+            paramsShape.width = faceRect.right-faceRect.left;
+            paramsShape.height = faceRect.bottom-faceRect.top;
+            paramsShape.setMargins(faceRect.left, faceRect.top, faceRect.right, faceRect.bottom);
+            paramsShape2.width=(int)(3*d);
+            paramsShape2.height=(int)(3*d/2);
+            paramsShape2.setMargins((int)leftCorner.x,(int)leftCorner.y,(int)rightCorner.x,(int)rightCorner.y);
         } else {
             gazePointText.setText("Gaze: ( , )");
+            preview2.bringChildToFront(mPreview2);
         }
 
         saving.AddFaceDataSample(numFaces, smileValue, leftEyeBlink, rightEyeBlink, faceRollValue,
                 faceYawValue, facePitchValue, gazePointValue, horizontalGazeAngle, verticalGazeAngle, System.currentTimeMillis());
+        storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
     }
 
     @Override
@@ -449,7 +557,14 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         if (cameraObj != null) {
             cameraObj.stopPreview();
             cameraObj.setPreviewCallback(null);
-            preview2.removeView(mPreview2);
+            preview2.removeAllViews();
+            //preview2.removeView(mPreview2);
+           // preview2.removeView(shapeView);
+            preview2.addView(mPreview2, 0);
+            preview2.addView(shapeView, 1, paramsShape);
+            preview2.addView(shapeView2, 2, paramsShape2);
+            preview2.bringChildToFront(shapeView);
+            preview2.bringChildToFront(shapeView2);
             cameraObj.release();
             faceProc.release();
             faceProc = null;
@@ -477,9 +592,15 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
         }
 
         mPreview2 = new CameraSurfacePreview(MainActivity.this, cameraObj, faceProc);
-        preview2.removeView(mPreview2);
+        preview2.removeAllViews();
+       // preview2.removeView(mPreview2);
+        //preview2.removeView(shapeView);
         preview2 = (FrameLayout) findViewById(R.id.preview2);
-        preview2.addView(mPreview2);
+        preview2.addView(mPreview2,0);
+        preview2.addView(shapeView,1, paramsShape);
+        preview2.addView(shapeView2, 2, paramsShape2);
+        preview2.bringChildToFront(shapeView);
+        preview2.bringChildToFront(shapeView2);
         cameraObj.setPreviewCallback(MainActivity.this);
 
     }
@@ -560,14 +681,14 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
                 drawView = new DrawView(this, null, false, 0, 0, null, landScapeMode);
                 preview.addView(drawView);
             }*/
-            setUI(0, 0, 0, 0, 0, 0, 0, null, 0, 0);
+            setUI(0, 0, 0, 0, 0, 0, 0, null, 0, 0, null, null, null);
         } else {
 
             Log.d("TAG", "Face Detected");
             faceArray = faceProc.getFaceData(EnumSet.of(FacialProcessing.FP_DATA.FACE_RECT,
                     FacialProcessing.FP_DATA.FACE_COORDINATES, FacialProcessing.FP_DATA.FACE_CONTOUR,
                     FacialProcessing.FP_DATA.FACE_SMILE, FacialProcessing.FP_DATA.FACE_ORIENTATION,
-                    FacialProcessing.FP_DATA.FACE_BLINK, FacialProcessing.FP_DATA.FACE_GAZE));
+                    FacialProcessing.FP_DATA.FACE_BLINK, FacialProcessing.FP_DATA.FACE_GAZE, FacialProcessing.FP_DATA.FACE_CONTOUR));
             // faceArray = faceProc.getFaceData(); // Calling getFaceData() alone will give you all facial data except the
             // face
             // contour. Face Contour might be a heavy operation, it is recommended that you use it only when you need it.
@@ -584,7 +705,6 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
                 //           preview.removeView(drawView);// Remove the previously created view to avoid unnecessary stacking of Views.
                 //           drawView = new DrawView(this, faceArray, true, surfaceWidth, surfaceHeight, cameraObj, landScapeMode);
                 //           preview.addView(drawView);
-
                 for (int j = 0; j < numFaces; j++) {
                     smileValue = faceArray[j].getSmileValue();
                     leftEyeBlink = faceArray[j].getLeftEyeBlink();
@@ -595,13 +715,197 @@ public class MainActivity extends ActionBarActivity implements BeatObserver, Cam
                     yaw = faceArray[j].getYaw();
                     horizontalGaze = faceArray[j].getEyeHorizontalGazeAngle();
                     verticalGaze = faceArray[j].getEyeVerticalGazeAngle();
+                    faceRect = faceArray[j].rect;
+                    leftEyeCoord = faceArray[j].leftEye;
+                    rightEyeCoord = faceArray[j].rightEye;
+
                 }
                 setUI(numFaces, smileValue, leftEyeBlink, rightEyeBlink, faceRollValue, yaw, pitch, gazePointValue,
-                        horizontalGaze, verticalGaze);
+                        horizontalGaze, verticalGaze, faceRect, leftEyeCoord, rightEyeCoord);
+            }
+        }
+    }
+/**********
+    public void addSample(byte buffer[], long timestamp, FrameLayout.LayoutParams pm, int numFaces, PointF leftCorner, PointF rightCorner)
+    {
+        start_timestamp = timestamp;
+        //boolean covered = detectFullCovering(buffer, c.getParameters().getPreviewSize().width, c.getParameters().getPreviewSize().height);
+        boolean detected=false;
+        if(numFaces>0) {
+            detected=true;
+        }
+        if (detected) {
+            positiveFrameCounter++;
+            negativeFrameCounter = 0;
+            if (!isDetecting) {
+                if (positiveFrameCounter >= 5) {
+                    isDetecting = true;
+                    observer.onCovered();
+
+                    double light = -analyze(buffer, skipSamples, pm, numFaces, leftCorner, rightCorner);
+                    init_timestamp = timestamp;
+                    init_value = light;
+                    Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - start_timestamp) + "," + (light - init_value));
+
+                    interpolated_value[counter] = light;
+                    counter++;
+                    prev_timestamp = timestamp;
+                    interpolated_timestamp = timestamp + 50;
+                    prev_value = light;
+                } else {
+                    Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - start_timestamp) + "," + 0);
+                }
+            } else {
+                double light = -analyze(buffer, skipSamples, pm, numFaces, leftCorner, rightCorner);
+
+                while ( (interpolated_timestamp <= timestamp) && (interpolated_timestamp > prev_timestamp)) {
+                    long deltaT1 = interpolated_timestamp - prev_timestamp;
+                    long deltaT2 = timestamp - prev_timestamp;
+
+                    double deltaH2 = light - prev_value;
+                    double deltaH1 = (deltaH2 * deltaT1)/deltaT2;
+                    double new_value = prev_value + deltaH1;
+
+                    interpolated_value[counter] = new_value;
+                    counter++;
+                    Log.i("Test", ""+new_value);
+                    if ( counter <= 5) {
+                        Log.i("HeartBeatAlgorithm", "addSample," + ((counter-1)*50 + init_timestamp - start_timestamp) + "," + 0);
+                    } else {
+                        if ( counter <= 100 ) {
+
+                            if (!firstTime_flag) {
+                                System.arraycopy(interpolated_value, 3, tempBuffer, 0, counter - 3 );
+                            }
+
+                            double[][] V = new double[counter - 5][counter - 3];
+                            for (int i = 0; i < counter - 5; i++ ){
+                                V[i][i] = 1;
+                                V[i][i+1] = -2;
+                                V[i][i+2] = 1;
+                            }
+
+                            SimpleMatrix V2 = SimpleMatrix.identity(counter - 3);
+                            SimpleMatrix V3 = new SimpleMatrix(V);
+                            SimpleMatrix V4 = ((V3.transpose()).mult(V3)).scale(lambda*lambda);
+                            SimpleMatrix V5 = V2.minus((V2.plus(V4)).invert());
+
+                            SimpleMatrix tempMatrix = new SimpleMatrix(counter - 3, 1, true, tempBuffer);
+                            SimpleMatrix newMatrix = V5.mult(tempMatrix);
+                            Log.i("HeartBeatAlgorithm", "addSample," + ((counter-1)*50 + init_timestamp - start_timestamp) + "," + newMatrix.get(counter-4, 0));
+
+                        }
+                    }
+                    if ( counter == 100) {
+                        if (!firstTime_flag) {
+                            firstTime_flag = true;
+                        }
+
+                        hralgirthm.begin_timestamp = 4950 + init_timestamp - start_timestamp;
+                        System.arraycopy(interpolated_value, 0, tempBuffer, 0, 100 );
+
+                        SimpleMatrix tempMatrix = new SimpleMatrix(100, 1, true, tempBuffer);
+                        SimpleMatrix newMatrix = Temp2.mult(tempMatrix);
+
+                        for (int i = 0; i < newMatrix.numRows(); i++ ) {
+                            hralgirthm.addSample(i*50 + init_timestamp - start_timestamp, newMatrix.get(i, 0));
+//    			        	DataStorage.AddSample(i*50 + init_timestamp - start_timestamp, newMatrix.get(i, 0));
+
+                            if(observer != null)
+                            {
+                                observer.onSample(i*50 + init_timestamp - start_timestamp, newMatrix.get(i, 0));
+                            }
+                        }
+                    }
+
+                    if ( counter > 100 ) {
+                        System.arraycopy(interpolated_value, counter - 100, tempBuffer, 0, 100 );
+
+                        SimpleMatrix tempMatrix = new SimpleMatrix(100, 1, true, tempBuffer);
+                        SimpleMatrix newMatrix = Temp2.mult(tempMatrix);
+
+                        hralgirthm.addSample((counter-1)*50 + init_timestamp - start_timestamp, newMatrix.get(99, 0));
+                        Log.i("HeartBeatAlgorithm", "addSample," + ((counter-1)*50 + init_timestamp - start_timestamp) + "," + newMatrix.get(99, 0));
+//    		        	DataStorage.AddSample((counter-1)*50 + init_timestamp - start_timestamp, newMatrix.get(99, 0));
+
+                        if(observer != null)
+                        {
+                            observer.onSample((counter-1)*50 + init_timestamp - start_timestamp, newMatrix.get(99, 0));
+                        }
+                    }
+
+                    interpolated_timestamp = interpolated_timestamp + 50;
+                }
+
+                prev_timestamp = timestamp;
+                prev_value = light;
+            }
+        } else {
+            negativeFrameCounter++;
+            positiveFrameCounter = 0;
+            if (isDetecting) {
+                if (negativeFrameCounter >= 5) {
+                    isDetecting = false;
+                    observer.onUncovered();
+                    hralgirthm.restart();
+                    reset();
+                    Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - start_timestamp) + "," + 0);
+                } else {
+                    Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - start_timestamp) + "," + 0);
+                }
+            } else {
+                Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - start_timestamp) + "," + 0);
             }
         }
     }
 
+    public double analyze(byte frame[], int sample_span, FrameLayout.LayoutParams pm, int numFaces, PointF leftCorner, PointF rightCorner)
+    {
+        int ychannel_size = (frame.length * 2) / 3;
 
+        double sum = 0;
+
+        for ( int pos = 0; pos < ychannel_size; pos +=  sample_span)
+        {
+            sum += frame[pos] & 0xff;
+        }
+
+        return sum;
+    }
+    public void reset() {
+        counter = 0;
+        interpolated_value = new double[50000];
+        prev_timestamp = 0;
+        interpolated_timestamp = 0;
+        prev_value = 0;
+        init_timestamp = 0;
+    }
+
+    void allocatePreviewBuffers()
+    {
+        android.hardware.Camera.Size size = cameraObj.getParameters().getPreviewSize();
+
+        int frame_size = paramsShape2.width * paramsShape2.height;
+        //size.height * size.width * 2;
+        int buffer_size = 4000000; // approximately 4MB
+        int max_frame = 8;
+        int frames = 0;
+
+        if(frame_size != 0)
+        {
+            frames = Math.max(Math.min(buffer_size / frame_size, max_frame), 1);
+        }
+
+        for (int i =0; i < frames; i++)
+        {
+            try
+            {
+                cameraObj.addCallbackBuffer(new byte[frame_size]);
+            }
+            catch(Exception exception) { }
+        }
+    }
+
+*****************/
 
 }

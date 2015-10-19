@@ -48,12 +48,13 @@ public class CameraSurfacePreview extends SurfaceView implements SurfaceHolder.C
         mFaceProc = faceProc;
         Camera.Parameters pm = mCamera.getParameters();
 
+
         int index = 0;
         List<Size> previewSize = pm.getSupportedPreviewSizes();
         for (int i = 0; i < previewSize.size(); i++) {
             int width = previewSize.get(i).width;
             int height = previewSize.get(i).height;
-            int size = width * height * 3 / 2;
+            int size = width * height * 3/2;
             if (size < MAX_NUM_BYTES) {
                 index = i;
                 break;
@@ -61,6 +62,7 @@ public class CameraSurfacePreview extends SurfaceView implements SurfaceHolder.C
         }
         // Optimal Preview size
         pm.setPreviewSize(previewSize.get(index).width, previewSize.get(index).height);
+        //pm.setPreviewSize(144,176);
         mCamera.setParameters(pm);
         // deprecated setting, but required on Android versions prior to 3.0
         mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
