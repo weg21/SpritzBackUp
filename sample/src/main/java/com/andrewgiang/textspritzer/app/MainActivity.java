@@ -13,6 +13,8 @@ import android.hardware.Camera.Parameters;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
+
+import com.andrewgiang.textspritzer.lib.DelayStrategy;
 import com.andrewgiang.textspritzer.lib.Spritzer;
 import com.andrewgiang.textspritzer.lib.SpritzerTextView;
 import edu.pitt.cs.mips.hrv_exp.*;
@@ -31,6 +33,11 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.EnumSet;
 
 import com.qualcomm.snapdragon.sdk.face.FaceData;
@@ -71,25 +78,37 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
     FaceData[] faceArray = null;
     boolean landScapeMode = false;
     ImageView statusImage;
-    ShapeDrawable faceBoundingBox = null;
     ShapeDrawable tempBoundingBox = null;
     FrameLayout.LayoutParams paramsShape;
-    FrameLayout.LayoutParams paramsShape2;
+
 
     //HeartBeat variables
     HeartBeatAlgorithm hb_hralgirthm;
     long hb_lastTime, hb_prev_timestamp, hb_interpolated_timestamp, hb_start_timestamp, hb_init_timestamp;
-    boolean hb_running, hb_isDetecting, hb_started, hb_firstTime_flag, hb_covered, focusing, startingFaceControl;
-    private int hb_skipSamples;
+    boolean hb_isDetecting, hb_started, hb_firstTime_flag, hb_covered, focusing, startingFaceControl; //hb_running,
     int hb_positiveFrameCounter, hb_negativeFrameCounter, hb_lambda, hb_counter;
     SimpleMatrix hb_I, hb_D2, hb_Temp1, hb_Temp2;
     double[] hb_interpolated_value, hb_tempBuffer;
     double hb_prev_value, hb_init_value;
     PointF leftCorner, rightCorner;
+    int counting;
+
+    //tracing back for making user more comfortable
+    long beginTracingTime;
+    int readingTracingIndex;
+    long gapTracingTime;
+    boolean tracingBool;
+    boolean playingSpritzBegins;
+
+    String directory;
+    File dir;
+    File file;
+    StringBuilder texting;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        counting=0;
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -97,26 +116,18 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
         Log.i("HeartBeatAlgorithm", "AppCreated");
         myView = new View(MainActivity.this);
         preview = (FrameLayout) findViewById(R.id.preview);
-        faceBoundingBox = new ShapeDrawable(new RectShape());
-        faceBoundingBox.getPaint().setColor(Color.GREEN);//0xFFFFFFFF);
-        faceBoundingBox.getPaint().setStyle(Paint.Style.STROKE);
-        faceBoundingBox.getPaint().setStrokeWidth(10);
         tempBoundingBox = new ShapeDrawable(new RectShape());
         tempBoundingBox.getPaint().setColor(Color.YELLOW);//0xFFFFFFFF);
         tempBoundingBox.getPaint().setStyle(Paint.Style.STROKE);
         tempBoundingBox.getPaint().setStrokeWidth(10);
         faceShape = new View(context);
-        faceShape.setBackground(faceBoundingBox);
         temperatureShape = new View(context);
         temperatureShape.setBackground(tempBoundingBox);
-        paramsShape = new FrameLayout.LayoutParams(100, 100);
+        paramsShape = new FrameLayout.LayoutParams(50, 25);
         paramsShape.setMargins(0, 0, 0, 0);
-        paramsShape2 = new FrameLayout.LayoutParams(50, 25);
-        paramsShape2.setMargins(0, 0, 0, 0);
 
         //heartbeat variables ini
         hb_hralgirthm = new HeartBeatAlgorithm();
-        hb_skipSamples = 25;	// pick a pixel every skipSamples pixels
         hb_lastTime = 0;
         hb_isDetecting = false;
         hb_positiveFrameCounter = 0;
@@ -154,6 +165,11 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
         statusImage.setVisibility(View.VISIBLE);
         fpFeatureSupported = FacialProcessing.isFeatureSupported(FacialProcessing.FEATURE_LIST.FEATURE_FACIAL_PROCESSING);
 
+        beginTracingTime=0;
+        readingTracingIndex=0;
+        gapTracingTime=0;
+        tracingBool=false;
+
         if (fpFeatureSupported && faceProc == null) {
             Toast.makeText(MainActivity.this, "Feature is supported", Toast.LENGTH_SHORT).show();
             faceProc = FacialProcessing.getInstance();  // Calling the Facial Processing Constructor.
@@ -175,8 +191,7 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
         preview.removeAllViews();
         preview = (FrameLayout) findViewById(R.id.preview);
         preview.addView(mPreview, 0);
-        preview.addView(faceShape, 1, paramsShape);
-        preview.addView(temperatureShape, 2, paramsShape2);
+        preview.addView(temperatureShape, 1, paramsShape);
         numFaceText = (TextView) findViewById(R.id.faceNum);
         faceYawText = (TextView) findViewById(R.id.yawVal);
         gazePointText = (TextView) findViewById(R.id.gazePoint);
@@ -188,10 +203,30 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
 /***********************************************************************/
         //Review the view and set text to be spritzed
         mSpritzerTextView = (SpritzerTextView) findViewById(R.id.spritzTV);
-        mSpritzerTextView.setSpritzText("Galileo teacher and politician who lived in Florence from 1370 to 1450; at that time in the late 14th century, the family's surname shifted from Bonaiuti (or Buonaiuti) to Galilei. Galileo Bonaiuti was buried in the same church, the Basilica of Santa Croce in Florence, where about 200 years later his more famous descendant Galileo Galilei was also buried. When Galileo Galilei was eight, his family moved to Florence, but he was left with Jacopo Borghini for two years.[15] He then was educated in the Camaldolese Monastery at Vallombrosa, 35 km southeast of Florence.[15]");
+//==========
+        directory = context.getExternalFilesDir(null) + "/readingContent/";
+        dir = new File(directory);
+        file = new File(dir, "spritzReading.txt");
+        texting = new StringBuilder();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String line;
+
+            while ((line = br.readLine()) != null) {
+                texting.append(line);
+                texting.append('\n');
+            }
+            br.close();
+        }
+        catch (IOException e) {
+            //You'll need to add proper error handling here
+        }
+//=================
+        //mSpritzerTextView.setSpritzText("Galileo teacher and politician who lived in Florence from 1370 to 1450; at that time in the late 14th century, the family's surname shifted from Bonaiuti (or Buonaiuti) to Galilei. Galileo Bonaiuti was buried in the same church, the Basilica of Santa Croce in Florence, where about 200 years later his more famous descendant Galileo Galilei was also buried. When Galileo Galilei was eight, his family moved to Florence, but he was left with Jacopo Borghini for two years.[15] He then was educated in the Camaldolese Monastery at Vallombrosa, 35 km southeast of Florence.[15]");
+        mSpritzerTextView.setSpritzText(texting.toString());
         mProgressBar = (ProgressBar) findViewById(R.id.spritz_progress);
         mSpritzerTextView.attachProgressBar(mProgressBar);
-        mSpritzerTextView.setWpm(500);
+        mSpritzerTextView.setWpm(200);
         mSpritzerTextView.setOnClickControlListener(new SpritzerTextView.OnClickControlListener() {
 
             @Override
@@ -206,7 +241,13 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
                 Toast.makeText(MainActivity.this, "Spritzer is playing", Toast.LENGTH_SHORT).show();
                 startingFaceControl=true;
                 Log.i("HeartBeatAlgorithm", "AppPlay");
-
+            /*
+                long beginTracingTime;
+                int readingTracingIndex;
+                long gapTracingTime;
+                boolean tracingBool;
+                boolean startingFaceControl;
+            */
             }
         });
 
@@ -223,15 +264,15 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
             }
         });
 
-//        mSpritzerTextView.setDelayStrategy(new DelayStrategy() {
-//            @Override
-//            public int delayMultiplier(String word) {
-//                if(word.contains("-")){
-//                  return 5;
-//                }
-//                return 1;
-//            }
-//        });
+        mSpritzerTextView.setDelayStrategy(new DelayStrategy() {
+            @Override
+            public int delayMultiplier(String word) {
+                if(word.contains("-")){
+                  return 5;
+                }
+                return 1;
+            }
+        });
         setupSeekBars();
     }
 
@@ -305,48 +346,73 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
         presentOrientation = 90 * (deviceOrientation / 360) % 360;
     }
 
-    public void setUI(int numFaces, int smileValue, int leftEyeBlink, int rightEyeBlink, int faceRollValue, int faceYawValue, int facePitchValue, PointF gazePointValue, int horizontalGazeAngle, int verticalGazeAngle, Rect faceRect, Point leftEyeCoord, Point rightEyeCoord) {
+    public void setUI(int numFaces, int smileValue, int leftEyeBlink, int rightEyeBlink, int faceRollValue, int faceYawValue, int facePitchValue, PointF gazePointValue, int horizontalGazeAngle, int verticalGazeAngle) {
         numFaceText.setText("Faces: " + numFaces);
         faceYawText.setText("Yaw: " + faceYawValue);
-        if ((numFaces > 0) && (faceYawValue<20) && (faceYawValue>=-30)) {
-            statusImage.setImageResource(R.drawable.green);
-            focusing=true;
+        if(startingFaceControl){
+            //We enable the eye gaze software to tracking the face data.
+            if ((numFaces > 0) && gazePointValue.x<0.2&&gazePointValue.x>-0.5&&gazePointValue.y<0.7&&gazePointValue.y>-0.5) {
+                statusImage.setImageResource(R.drawable.green);
+                focusing=true;
+                tracingBool=false;
+                if(gapTracingTime>=1000){
+                    heartDataText.setText("readingTracingIndex: "+readingTracingIndex);
+                    mSpritzerTextView.setSpritzText(texting.toString().substring(readingTracingIndex));
+                    mSpritzerTextView.play();
+                    storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
+                    readingTracingIndex=0;
+                    beginTracingTime=System.currentTimeMillis();
+                    gapTracingTime=0;
+                }
+                else{
+                    mSpritzerTextView.play();
+                    storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
+                    gapTracingTime=0;
+                    readingTracingIndex=0;
+                    beginTracingTime=System.currentTimeMillis();
+                }
 
-            if(startingFaceControl){
-                mSpritzerTextView.play();
-                storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
             }
+            else{
+            /*
+                long beginTracingTime;
+                int readingTracingIndex;
+                long gapTracingTime;
+                boolean tracingBool;
+                boolean startingFaceControl;
+            */
+                if(!tracingBool){
+                    tracingBool= true;
+                    beginTracingTime=System.currentTimeMillis();
+                    readingTracingIndex = mSpritzerTextView.getCurrentWordIndex();
+                    heartDataText.setText("readingTracingIndex: "+readingTracingIndex);
 
+                }
+                else{
+                    gapTracingTime=System.currentTimeMillis()-beginTracingTime;
+                    if(gapTracingTime>=1000){
+                        statusImage.setImageResource(R.drawable.red);
+                        focusing = false;
+                        mSpritzerTextView.pause();
+                        storage.AddWordIndex(System.currentTimeMillis(), readingTracingIndex);
+                    }
+                }
+
+            }
         }
         else{
-            statusImage.setImageResource(R.drawable.red);
-            focusing = false;
-            if(startingFaceControl){
-                mSpritzerTextView.pause();
-                storage.AddWordIndex(System.currentTimeMillis(), mSpritzerTextView.getCurrentWordIndex());
-            }
+            //the Spritz text has been displayed completely
         }
+
+
 
         if (gazePointValue != null) {
             double x = Math.round(gazePointValue.x * 100.0) / 100.0;// Rounding the gaze point value.
             double y = Math.round(gazePointValue.y * 100.0) / 100.0;
-            float d=(float)Math.sqrt((leftEyeCoord.x-rightEyeCoord.x)*(leftEyeCoord.x-rightEyeCoord.x)+(leftEyeCoord.y-rightEyeCoord.y)*(leftEyeCoord.y-rightEyeCoord.y))/4;
-            //rectangle used for detecting the pulse
-            leftCorner = new PointF(leftEyeCoord.x+d/2,leftEyeCoord.y-5*d/2);
-            rightCorner = new PointF(rightEyeCoord.x-d/2,rightEyeCoord.y-d);
-            //gazePointText.setText("Gaze: (" + x + "," + y + ")" + "l,t,r,b:" + faceRect.left + "," + faceRect.top + "," + faceRect.right + "," + faceRect.bottom + "\n lc: " + leftCorner + "\n rc:" + rightCorner);
-            gazePointText.setText("Gaze: (" + x + "," + y + ")" + "\n lc_s: " + leftCorner + "\n rc_s:" + rightCorner+ "\n lc_m: ");
-            preview.bringChildToFront(faceShape);
-            preview.bringChildToFront(temperatureShape);
-            paramsShape.width = faceRect.right-faceRect.left;
-            paramsShape.height = faceRect.bottom-faceRect.top;
-            paramsShape.setMargins(faceRect.left, faceRect.top, faceRect.right, faceRect.bottom);
-            paramsShape2.width=(int)(3*d);
-            paramsShape2.height=(int)(3*d/2);
-            paramsShape2.setMargins((int)leftCorner.x,(int)leftCorner.y,(int)rightCorner.x,(int)rightCorner.y);
+            gazePointText.setText("Gaze: (" + x + "," + y + ")");
+
         } else {
             gazePointText.setText("Gaze: ( , )");
-            preview.bringChildToFront(mPreview);
         }
 
         saving.AddFaceDataSample(numFaces, smileValue, leftEyeBlink, rightEyeBlink, faceRollValue,
@@ -357,7 +423,6 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
     @Override
     protected void onPause() {
         Log.i("HeartBeatAlgorithm", "AppPaused");
-        System.out.println("%%%%%%%%%%%%%%&&&&&&&&&&&&&&&&&&&&&&&& onPause");
         super.onPause();
         stopCamera();
     }
@@ -365,15 +430,12 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
     @Override
     protected void onDestroy() {
         Log.i("HeartBeatAlgorithm", "AppClosed");
-        //System.out.print("~~~~~~~~~$$$$$$$$$$$$$$$$$$$: " + dataStorage.get(2).length);
-        System.out.println("%%%%%%%%%%%%%%&&&&&&&&&&&&&&&&&&&&&&&& onDestroy");
         super.onDestroy();
 
     }
 
     @Override
     protected void onResume() {
-        System.out.println("%%%%%%%%%%%%%%&&&&&&&&&&&&&&&&&&&&&&&& onResume");
         Log.i("HeartBeatAlgorithm", "AppResumed");
         super.onResume();
         if (cameraObj != null) {
@@ -391,8 +453,7 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
             cameraObj.setPreviewCallback(null);
             preview.removeAllViews();
             preview.addView(mPreview, 0);
-            preview.addView(faceShape, 1, paramsShape);
-            preview.addView(temperatureShape, 2, paramsShape2);
+            preview.addView(temperatureShape, 1, paramsShape);
             preview.bringChildToFront(faceShape);
             preview.bringChildToFront(temperatureShape);
             cameraObj.release();
@@ -401,7 +462,7 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
         }
 
         cameraObj = null;
-        hb_running=false;
+        //hb_running=false;
     }
 
     /*
@@ -426,12 +487,11 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
         preview.removeAllViews();
         preview = (FrameLayout) findViewById(R.id.preview);
         preview.addView(mPreview,0);
-        preview.addView(faceShape, 1, paramsShape);
-        preview.addView(temperatureShape, 2, paramsShape2);
+        preview.addView(temperatureShape, 1, paramsShape);
         preview.bringChildToFront(faceShape);
         preview.bringChildToFront(temperatureShape);
         cameraObj.setPreviewCallback(MainActivity.this);
-        hb_running = true;
+       // hb_running = true;
     }
 
     /*
@@ -493,7 +553,7 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
 
         if (numFaces == 0) {
             Log.d("TAG", "No Face Detected");
-            setUI(0, 0, 0, 0, 0, 0, 0, null, 0, 0, null, null, null);
+            setUI(0, 0, 0, 0, 0, 0, 0, null, 0, 0);
             hb_covered=false;
         } else {
             Log.d("TAG", "Face Detected");
@@ -530,20 +590,22 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
                     rightEyeCoord = faceArray[j].rightEye;
 
                 }
+
+                leftCorner.set(faceRect.left + (2*faceRect.centerX()-2*faceRect.left) * 20 / 100, faceRect.top);
+                paramsShape.width=(2*faceRect.centerX()-2*faceRect.left)*60/100;
+                paramsShape.height=2*faceRect.centerY()-2*faceRect.top;
+                paramsShape.setMargins((int) leftCorner.x, (int) leftCorner.y, 20, 20);
                 setUI(numFaces, smileValue, leftEyeBlink, rightEyeBlink, faceRollValue, yaw, pitch, gazePointValue,
-                        horizontalGaze, verticalGaze, faceRect, leftEyeCoord, rightEyeCoord);
+                        horizontalGaze, verticalGaze);
                 hb_covered=true;
-                float d=(float)Math.sqrt((leftEyeCoord.x-rightEyeCoord.x)*(leftEyeCoord.x-rightEyeCoord.x)+(leftEyeCoord.y-rightEyeCoord.y)*(leftEyeCoord.y-rightEyeCoord.y))/4;
-                leftCorner.set(leftEyeCoord.x + d / 2, leftEyeCoord.y - 5 * d / 2);
-                rightCorner.set(rightEyeCoord.x-d/2,rightEyeCoord.y-d);
             }
         }
         hb_lastTime = System.nanoTime();
 
-        if(hb_running)
-        {
-            addSample(data, hb_lastTime / 1000000, leftCorner, rightCorner);
-        }
+//        if(hb_running)
+//        {
+        addSample(data, hb_lastTime / 1000000, leftCorner, paramsShape.width, paramsShape.height);
+//        }
 
         returnBuffer(data);
     }
@@ -558,7 +620,7 @@ public class MainActivity extends ActionBarActivity implements Camera.PreviewCal
     }
 
 //From here are the functions from HeartBeat.java
-public void addSample(byte buffer[], long timestamp, PointF leftCorner, PointF rightCorner)
+public void addSample(byte buffer[], long timestamp, PointF leftCorner, int pwidth, int pheight)
 {
     if (!hb_started) {
         hb_started = true;
@@ -573,7 +635,7 @@ public void addSample(byte buffer[], long timestamp, PointF leftCorner, PointF r
           //      hb_observer.onCovered();
                 Log.i("HeartBeatAlgorithm", "onCovered");
 
-                double light = -analyze(buffer, hb_skipSamples, leftCorner, rightCorner);
+                double light = -analyze(buffer, leftCorner, pwidth, pheight);
                 hb_init_timestamp = timestamp;
                 hb_init_value = light;
                 Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - hb_start_timestamp) + "," + (light - hb_init_value));
@@ -588,16 +650,14 @@ public void addSample(byte buffer[], long timestamp, PointF leftCorner, PointF r
                 Log.i("HeartBeatAlgorithm", "addSample," + (timestamp - hb_start_timestamp) + "," + 0);
             }
         } else {
-            double light = -analyze(buffer, hb_skipSamples, leftCorner, rightCorner);
+            double light = -analyze(buffer, leftCorner, pwidth, pheight);
 
             while ( (hb_interpolated_timestamp <= timestamp) && (hb_interpolated_timestamp > hb_prev_timestamp)) {
                 long deltaT1 = hb_interpolated_timestamp - hb_prev_timestamp;
                 long deltaT2 = timestamp - hb_prev_timestamp;
-
                 double deltaH2 = light - hb_prev_value;
                 double deltaH1 = (deltaH2 * deltaT1)/deltaT2;
                 double new_value = hb_prev_value + deltaH1;
-
                 hb_interpolated_value[hb_counter] = new_value;
                 hb_counter++;
                 Log.i("Test", ""+new_value);
@@ -683,17 +743,18 @@ public void addSample(byte buffer[], long timestamp, PointF leftCorner, PointF r
     }
 }
 
-    public double analyze(byte frame[], int sample_span, PointF leftCorner, PointF rightCorner)
+    public double analyze(byte frame[], PointF leftCorner, int pwidth, int pheight)
     {
         //Using Averaging Method
+        counting++;
         float x1=leftCorner.x;
         float y1=leftCorner.y;
-        float x2=rightCorner.x;
-        float y2=rightCorner.y;
+        int width = pwidth;
+        int height = pheight;
         float rX1=x1/150*1280;
-        float rX2=x2/150*1280;
+        float rX2=(x1+width)/150*1280;
         float rY1=y1/200*720;
-        float rY2=y2/200*720;
+        float rY2=(y1+height)/200*720;
         int shushu=0;
         double sum = 0;
         for( int i=0;i<1280; i++)
@@ -708,9 +769,9 @@ public void addSample(byte buffer[], long timestamp, PointF leftCorner, PointF r
             }
         }
         double avg=sum/shushu;
-        heartDataText.setText("Heart Data: "+avg);
-        //return avg*36864;
-        return avg*4500;
+    //    heartDataText.setText("=="+counting+"\n Average:"+avg*36864+"\n Shushu:"+shushu+"rX1 rY1:"+rX1/1280+","+rY1/720+"\n rX2 rY2:"+rX2/1280+","+rY2/720);
+        return avg*36864;
+        //return avg*4500;
         //Using skipstamp Method
     }
 

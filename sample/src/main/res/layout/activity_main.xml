@@ -10,7 +10,7 @@
     tools:context="com.andrewgiang.textspritzer.app.MainActivity">
     <!--android:background="@drawable/bgwatch" android:gravity="center"-->
 
-    <ImageView
+   <ImageView
         android:id="@+id/bg"
         android:layout_width="688px"
         android:layout_height="982px"
@@ -43,10 +43,11 @@
 
         <ProgressBar
             android:id="@+id/spritz_progress"
-            android:layout_width="330px"
+            android:layout_width="300px"
             android:layout_height="20dp"
             android:layout_below="@id/spritzTV"
-            style="?android:attr/progressBarStyleHorizontal" />
+            style="?android:attr/progressBarStyleHorizontal"
+            android:indeterminate="false" />
 
 
             <TextView
